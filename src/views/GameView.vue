@@ -59,10 +59,11 @@ export default {
       placingShip: false,
       isReady: false,
       orientation: 'horizontal',
-      timer: 15,
+      timer: 25,
       timerInterval: null,
       currentPlayer: null,
       gameStarted: false,
+      lastHitIndex: null,
     };
   },
   methods: {
@@ -77,6 +78,10 @@ export default {
 
       if (cell.hit) {
         alert('Touché !');
+        if (this.checkWin(this.opponentGrid)) {
+          alert('Vous avez gagné !');
+          this.gameStarted = false;
+        }
       } else {
         alert('Manqué !');
         this.currentPlayer = 'opponent';
@@ -86,21 +91,52 @@ export default {
     },
     opponentTurn() {
       setTimeout(() => {
-        const availableCells = this.playerGrid.filter(cell => !cell.touched);
-        const randomIndex = Math.floor(Math.random() * availableCells.length);
-        const cell = availableCells[randomIndex];
+        let index;
+        if (this.lastHitIndex !== null) {
+          const adjacentIndices = [
+            this.lastHitIndex - 1, // left
+            this.lastHitIndex + 1, // right
+            this.lastHitIndex - 10, // up
+            this.lastHitIndex + 10 // down
+          ].filter(i => i >= 0 && i < 100 && !this.playerGrid[i].touched);
+
+          if (adjacentIndices.length > 0) {
+            index = adjacentIndices[Math.floor(Math.random() * adjacentIndices.length)];
+          } else {
+            this.lastHitIndex = null;
+            index = Math.floor(Math.random() * 100);
+          }
+        } else {
+          index = Math.floor(Math.random() * 100);
+        }
+
+        const cell = this.playerGrid[index];
+        if (cell.touched) {
+          this.opponentTurn();
+          return;
+        }
+
         cell.touched = true;
         cell.hit = cell.occupied;
 
         if (cell.hit) {
           alert('L\'adversaire a touché un de vos navires !');
-          this.opponentTurn(); // Rejouer si l'adversaire touche un navire
+          this.lastHitIndex = index;
+          if (this.checkWin(this.playerGrid)) {
+            alert('L\'adversaire a gagné !');
+            this.gameStarted = false;
+          } else {
+            this.opponentTurn(); // Rejouer si l'adversaire touche un navire
+          }
         } else {
           alert('L\'adversaire a manqué !');
           this.currentPlayer = 'player';
           this.resetTimer();
         }
       }, 1000);
+    },
+    checkWin(grid) {
+      return grid.every(cell => !cell.occupied || (cell.occupied && cell.touched));
     },
     placeShipsRandomly(grid) {
       const ships = [
@@ -182,7 +218,7 @@ export default {
       }
     },
     startTimer() {
-      this.timer = 15;
+      this.timer = 25;
       this.timerInterval = setInterval(() => {
         if (this.timer > 0) {
           this.timer--;
@@ -197,7 +233,7 @@ export default {
     },
     resetTimer() {
       clearInterval(this.timerInterval);
-      this.timer = 15;
+      this.timer = 25;
       this.startTimer();
     },
     startGame() {
